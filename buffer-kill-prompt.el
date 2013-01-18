@@ -12,10 +12,10 @@
   (let ((buffername (buffer-name buf)))
     (and (not (buffer-file-name buf))
          (buffer-modified-p buf)
-          ;Emacs creates its own temporary buffers.
-          ;These are safe to destroy.
+         (not (eq major-mode 'dired-mode))
          (not (string-equal "*" (format "%.1s" buffername)))
-         (not (string-equal " *" (format "%.2s" buffername))))))
+         (not (string-equal " *" (format "%.2s" buffername)))
+         (not indirect-buffer-parent))))
 
 (defun modified-user-temp-buffer-prompt ()
   (interactive)
