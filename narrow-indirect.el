@@ -14,48 +14,39 @@
 ;(or performs a regular widen if the buffer was not created
 ; with an indirect narrowing)
 
-(setq-default narrow-buffer-parent nil)
+(setq-default indirect-buffer-parent nil)
 
-(defun make-indirect-narrow-buffer-name (parent-name)
-  (do* ((buf-count 0 (+ buf-count 1))
-        (name (format "%s:narrowed" parent-name)
-              (format "%s:narrowed<%d>" parent-name buf-count)))
-      ((not (get-buffer name)) name)))
-
-(defmacro do-indirect-narrow (action)
-  `(let* ((buf (current-buffer))
-          (parent-name (buffer-name buf))
-          (p (point)))
-     (if narrow-buffer-parent
+(defmacro do-in-indirect-buffer (action &optional suffix)
+  `(if indirect-buffer-parent
+       ,action
+       (let* ((parent-name (buffer-name))
+              (new-name (generate-new-buffer-name (format "%s%s" parent-name ,suffix))))
+         (switch-to-buffer (clone-indirect-buffer new-name nil))
+         (set (make-local-variable 'indirect-buffer-parent) parent-name)
          ,action
-       (let ((new-name (make-indirect-narrow-buffer-name parent-name)))
-         (switch-to-buffer
-          (or (get-buffer new-name) (make-indirect-buffer buf new-name t)))
-         (set (make-local-variable 'narrow-buffer-parent) parent-name)
-         (goto-char p)
-         ,action
-         (setq mark-active nil)))))
+         (setq mark-active nil))))
 
 (defun narrow-to-region-indirect ()
   (interactive)
   (let ((start (region-beginning))
         (end (region-end)))
-    (do-indirect-narrow 
-     (narrow-to-region start end))))
+    (do-in-indirect-buffer 
+     (narrow-to-region start end) ":narrowed")))
 
 (defun narrow-to-defun-indirect ()
   (interactive)
-  (do-indirect-narrow (narrow-to-defun)))
+  (do-in-indirect-buffer (narrow-to-defun) ":narrowed"))
 
 (defun widen-indirect ()
   (interactive)
-  (let* ((buf (current-buffer))
-         (buffername (buffer-name buf)))
-    (if narrow-buffer-parent      
-        (progn (switch-to-buffer narrow-buffer-parent)
-               (kill-buffer buf))
-      (widen))))
+  (if (not indirect-buffer-parent)
+      (widen)
+    (let ((buf (current-buffer))
+          (p (point)))
+      (switch-to-buffer indirect-buffer-parent)
+      (kill-buffer buf)
+      (goto-char p))))
 
 (global-set-key (kbd "C-x n d") 'narrow-to-defun-indirect)
 (global-set-key (kbd "C-x n n") 'narrow-to-region-indirect)
-(global-set-key (kbd "C-x n w") 'widen-indirect)  
+(global-set-key (kbd "C-x n w") 'widen-indirect) 
