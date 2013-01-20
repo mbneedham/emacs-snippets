@@ -10,12 +10,13 @@
 
 (defun modified-user-temp-buffer-p (buf)
   (let ((buffername (buffer-name buf)))
-    (and (not (buffer-file-name buf))
-         (buffer-modified-p buf)
-         (not (eq major-mode 'dired-mode))
-         (not (string-equal "*" (format "%.1s" buffername)))
-         (not (string-equal " *" (format "%.2s" buffername)))
-         (not indirect-buffer-parent))))
+    (and (buffer-modified-p buf)
+         (not (or (buffer-file-name buf)
+                  (eq major-mode 'dired-mode)
+                  (string-equal "*" (format "%.1s" buffername))
+                  (string-equal " *" (format "%.2s" buffername))
+                  (string-equal " info dir" buffername)
+                  (buffer-base-buffer))))))
 
 (defun modified-user-temp-buffer-prompt ()
   (interactive)
@@ -28,7 +29,9 @@
   (interactive)
   (if (memq t (mapcar 'modified-user-temp-buffer-p
                       (buffer-list)))
-      (y-or-n-p (format "Modified user temp buffers exist; exit anyway? "))
+      (progn (ibuffer nil "*modified user temp buffers*" nil nil t)
+             (ibuffer-filter-by-predicate '(modified-user-temp-buffer-p (current-buffer)))
+             (y-or-n-p (format "Modified user temp buffers exist; exit anyway? ")))
     t))
 
 (add-to-list 'kill-emacs-query-functions 'check-for-unsaved-user-temp-buffers)
